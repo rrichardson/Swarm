@@ -1,0 +1,9 @@
+#!/bin/bash
+
+scalac  -Xprint:typer \
+        -Ylog:selectiveanf \
+        -Xprint:selectiveanf \
+        -Ylog:selectivecps \
+        -Xprint:selectivecps \
+        -cp target/classes:$SCALA_HOME/lib/scala-library.jar:$SCALA_C_DIR/build/pack/selectivecps-library.jar \
+        src/main/scala/swarm/$1.scala
