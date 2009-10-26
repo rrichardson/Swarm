@@ -1,7 +1,7 @@
 package swarm.demos;
 
 import swarm._;
-import swarm.Swarm._;
+import swarm.Swarm;
 
 object Listen {
 	def main(args : Array[String]) = {

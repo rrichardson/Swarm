@@ -4,6 +4,7 @@ import swarm._;
 import swarm.Swarm._;
 import scala.Console._;
 import Integer._;
+import scala.actors.remote.Node;
 
 object ExplicitMoveTo1 {
 	def main(args : Array[String]) = {		
@@ -20,9 +21,9 @@ object ExplicitMoveTo1 {
 	
 	def emt1Thread(u : Unit) = {
 		val name = scala.Console.readLine("What is your name? : ");
-		moveTo(new Location(myLocation.address, 9997))
+		moveTo(Node(myLocation.address, 9997))
 		val age = parseInt(readLine("Hello "+name+", what age are you? : "))
-		moveTo(new Location(myLocation.address, 9998))
+		moveTo(Node(myLocation.address, 9998))
 		println("Wow "+name+", you're half way to "+(age*2)+" years old")
 		NoBee()
 	}

@@ -1,11 +1,14 @@
 package swarm.demos;
 
+import scala.actors.remote.Node;
 import swarm._;
 import swarm.Swarm._;
 
 object ForceRemoteRef {
 	def main(args : Array[String]) = {
-		Swarm.listen(java.lang.Short.parseShort(args(0)));
+		
+    Swarm.listen(java.lang.Short.parseShort(args(0)));
+
 		if (args.length > 1 && args(1) == "start") {
 			Swarm.spawn(frrThread);
 		}
@@ -22,7 +25,7 @@ object ForceRemoteRef {
 		
 		println("2");
 			
-		val vRem = Ref(new Location(myLocation.address, 9997), 
+		val vRem = Ref.at(Node(myLocation.address, 9997),
 				       "test remote string");
 		
 		println("3");

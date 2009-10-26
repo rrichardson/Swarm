@@ -4,53 +4,59 @@ import scala.continuations._
 import scala.continuations.ControlContext._ 
 import scala.continuations.Loops._
 
+import scala.actors.Actor
+import scala.actors.Actor._
+import scala.actors.Exit
+
+import scala.actors.remote.RemoteActor
+import scala.actors.remote.RemoteActor._
+import scala.actors.remote.Node
+import scala.actors.remote.CustomObjectInputStream
+
 import java.net._
 import java.io._
+import java.lang.System;
 
-object Swarm {
+case class Exec(bee: Unit => Bee);
+case class Success(id : Int, result : Ref[Any]);
+case class Failure(id : Int, reason : String);
+
+object Swarm extends Actor {
 	type swarm = cps[Bee, Bee];
-	
-	var myLocation : Location = null;
-	
-	var shouldLog = true;
-	
-	def isLocal(loc : Location) = {
-		loc.equals(myLocation);
-	}
+  trapExit = true // (1)
+	var myLocation : Node = null;
+	val shouldLog = true;
 
-	def log(message : String) = {
-		if (shouldLog) println(myLocation.port+" : "+message);
-	}
+  def listen(port : int)
+  {
+    myLocation = new Node("localhost", port)
+    this.start
+  }
+  
+  def act() {
+    RemoteActor.classLoader = getClass().getClassLoader()
+    alive(myLocation.port)
+    register('Swarm, self)
 
-	def listen(port : Short) = {
-		myLocation = new Location(InetAddress.getLocalHost(), port);
-	
-		val srvr = new ServerSocket(myLocation.port);
-
-		var listenThread = new Thread() {
-			override def run() = {
-				while (true) {
-					log("Waiting for connection");
-					val sock = srvr.accept();
-					log("Received connection");
-					val ois = new ObjectInputStream(sock.getInputStream());
-					val bee = ois.readObject().asInstanceOf[(Unit => Bee)];
-					log("Executing continuation");
-					Swarm.run((Unit) => shiftUnit(bee()));
-				}
+    while (true) {
+			log("Waiting for message");
+      receive {
+        case Exec(bee) => 
+          log("Executing continuation");
+          Swarm.run((Unit) => shiftUnit(bee()));
+        case Success(id, result) =>
+          log("request succeeded");
+        case Failure(id, reason) =>
+          log("request failed");
 			}
-		}
-		listenThread.start();
-		Thread.sleep(500);
+	  }
 	}
-	
 	
 	def run(toRun : Unit => Bee @swarm) = {
 		execute(reset {
 			log("Running task");
 			toRun();
-//			log("Completed task");
-//			NoBee()
+      //log("Done with run");
 		})
 	}
 	
@@ -59,12 +65,12 @@ object Swarm {
 	 * task is started in a new thread)
 	 */
 	def spawn(toRun : Unit => Bee @swarm) = {
-		val thread = new Thread() {
+		val thread = new Thread {
 			override def run() = {
 				execute(reset {
-					log("Running task");
+					log("Spawning task");
 					toRun();
-					log("Completed task");
+					log("Done with Spawn");
 					NoBee()
 				})
 			}
@@ -72,13 +78,12 @@ object Swarm {
 		thread.start();
 	}
 	
-	def moveTo(location : Location) = shift {
+	def moveTo(location : Node) = shift {
 		c: (Unit => Bee) => {
 			log("Move to")
 			if (Swarm.isLocal(location)) {
 				log("Is local")
 				c()
-//				NoBee()
 			} else {
 				log("Moving task to "+location.port);
 				IsBee(c, location)
@@ -90,10 +95,8 @@ object Swarm {
 		bee match {
 			case IsBee(contFunc, location) => {
 				log("Transmitting task to "+location.port);
-				val skt = new Socket(location.address, location.port);
-				val oos = new ObjectOutputStream(skt.getOutputStream());
-				oos.writeObject(contFunc);
-				oos.close();
+        val rs = select(location, 'Swarm);
+        rs ! Exec(contFunc);
 				log("Transmission complete");
 			}
 			case NoBee() => {
@@ -101,4 +104,13 @@ object Swarm {
 			}
 		}
 	}
+
+  def isLocal(loc : Node) = {
+		loc.equals(myLocation);
+	}
+
+	def log(message : String) = {
+		if (shouldLog) printf("%d-%d:%s \n", System.currentTimeMillis(), myLocation.port, message);
+	}
+
 }

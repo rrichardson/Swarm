@@ -12,10 +12,10 @@ import scala.actors.remote._
  the thread being serialized and moved to the remote computer, before
  returning the object.
  **/
-@serializable class Ref[Type](val typeClass : Class[Type], val location : Location, val uid : Long) {
+@serializable class Ref[Type](val typeClass : Class[Type], val location : Node, val uid : Long) {
 	def apply() = {
 		Swarm.moveTo(location);
-		Store(typeClass, uid) match {
+		Store.get(typeClass, uid) match {
 			case Some(v) => v
 			case None => throw new RuntimeException("Unable to find item with uid "+uid+" in local store");
 		};
@@ -24,12 +24,14 @@ import scala.actors.remote._
 
 object Ref {
 	def apply[Type](value : AnyRef) : Ref[Type] @swarm = {
-		apply(Swarm.myLocation, value);
+		at(Swarm.myLocation, value);
 	}
 	
-	def apply[Type](location : Location, value : AnyRef) : Ref[Type] @swarm = {
+	def at[Type](location : Node, value : AnyRef) : Ref[Type] @swarm = {
 		Swarm.moveTo(location);
+    println("saving value");
 		val uid = Store.save(value);
+    println("done saving value");
 		new Ref[Type](value.getClass().asInstanceOf[Class[Type]], location, uid);
 	}
 	
